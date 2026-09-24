@@ -1417,8 +1417,8 @@ html.hq-calm #confetti{display:none!important}
         <button class="hbtn on" id="arenaChatSend" type="submit" disabled>Send</button>
       </form>
       <p class="muted" style="font-size:11.5px;margin:0">
-        Goes to everyone in the lobby right now, through the Arena server. Nothing is saved &mdash;
-        people who join later won&rsquo;t see earlier messages.
+        Goes to everyone in the lobby, through the Arena server. The server keeps the last 50 messages in
+        memory (never on disk) so people who join can catch up; they&rsquo;re gone when the lobby empties.
       </p>
     </section>
 
@@ -3210,7 +3210,7 @@ setInterval(function(){ if(STATE){ $("updated").textContent="updated "+relTime(S
 
 /* ---- view switcher ---- */
 // Arena state must exist before setView(VIEW) runs at startup (it calls arenaCloseSocket).
-var ARENA = {window:"season", status:null, sock:null, retry:null, you:null, chat:[]};
+var ARENA = {window:"season", status:null, sock:null, retry:null, you:null, chat:[], chatSeen:{}};
 var VIEW = (function(){ var v=localStorage.getItem("hq_view"); return (v==="analytics"||v==="pokedex"||v==="gym"||v==="quests"||v==="arena")?v:"live"; })();
 function setView(v){
   VIEW = v; localStorage.setItem("hq_view", v);
@@ -5082,6 +5082,8 @@ function arenaOpenSocket(){
         ARENA.you = (m.you && typeof m.you === "object") ? m.you : null;
         arenaRenderLobby(m.members||[]);
         var n = Array.isArray(m.members) ? m.members.length : 1;
+        // Recent messages the server kept for people joining (none from a server without chat history).
+        if(Array.isArray(m.chat)) m.chat.forEach(function(c){ if(c && typeof c === "object") arenaChatReceive(c); });
         arenaChatSys("You joined the lobby · " + n + " online");
         arenaChatReady(true);
       }
@@ -5092,6 +5094,9 @@ function arenaOpenSocket(){
       else if(m.type==="say"){ arenaChatReceive(m); }
       else if(m.type==="nudge"){ arenaOnNudge(m); }
       else if(m.type==="nudge_ack"){ toast(m.delivered ? "\uD83D\uDC4B Nudge sent" : "They\u2019re not in the lobby right now", m.delivered?"level":"ach"); }
+      else if(m.type==="error" && typeof m.error==="string" && m.error.indexOf("chat: ")===0){
+        arenaChatSys(m.error.slice(6, 120));   // e.g. the server's flood guard: "slow down \u2014 \u2026"
+      }
     };
     ws.onclose = function(){
       ARENA.sock = null;
@@ -5177,15 +5182,18 @@ function arenaChatReceive(m){
   var d = m.data;
   // Other room traffic (a future minigame, say) may use "say" too: only chat lines are shown.
   if(!d || typeof d !== "object" || d.kind !== "chat" || typeof d.text !== "string") return;
+  // A server with chat history stamps an id: the same message can come again in a later welcome.
+  if(typeof m.id === "string"){ if(ARENA.chatSeen[m.id]) return; ARENA.chatSeen[m.id] = 1; }
   var text = d.text.slice(0, ARENA_CHAT_MAX).trim();
   if(!text) return;
   var from = (m.from && typeof m.from === "object") ? m.from : {};
+  var at = typeof m.at === "string" ? Date.parse(m.at) : NaN;   // the server's time when it has one
   arenaChatPush({
     who: arenaWho(from),
     handle: typeof from.handle === "string" ? from.handle.slice(0, 40) : "",
     avatar: (typeof from.avatarUrl === "string" && /^https:\/\//.test(from.avatarUrl)) ? from.avatarUrl : "",
     you: !!(ARENA.you && from.userId && from.userId === ARENA.you.userId),
-    text: text, at: Date.now()
+    text: text, at: isNaN(at) ? Date.now() : at
   });
 }
 
