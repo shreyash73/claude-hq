@@ -182,3 +182,73 @@ async def test_signal_needs_a_target_and_an_object(client):
         assert "target" in a.receive_json()["error"]
         a.send_json({"type": "signal", "to": a_id, "data": "not an object"})
         assert "object" in a.receive_json()["error"]
+
+
+def chat(ws, text):
+    ws.send_json({"type": "say", "data": {"kind": "chat", "text": text}})
+
+
+async def test_chat_is_cleaned_clipped_and_stamped(client):
+    a_id, _ = await make_user("ash", 60)
+    b_id, _ = await make_user("gary", 61)
+    with client.websocket_connect(url("lobby", issue_ws_ticket(a_id))) as a:
+        a.receive_json()
+        with client.websocket_connect(url("lobby", issue_ws_ticket(b_id))) as b:
+            a.receive_json(); b.receive_json()  # join notice + welcome
+
+            chat(a, "  hi\x07 there\n\n  friend  ")
+            got = b.receive_json()
+            assert got["type"] == "say" and got["from"]["handle"] == "ash"
+            assert got["data"] == {"kind": "chat", "text": "hi there friend"}  # control chars gone, spaces folded
+            assert got["at"].endswith("+00:00") and len(got["id"]) == 12
+            assert a.receive_json()["id"] == got["id"]  # the sender gets the same echo
+
+            chat(a, "x" * 800)
+            assert len(b.receive_json()["data"]["text"]) == 500
+
+            # Other room traffic on "say" is still relayed untouched.
+            a.send_json({"type": "say", "data": {"kind": "game", "move": 3}})
+            assert b.receive_json()["data"] == {"kind": "game", "move": 3}
+
+
+async def test_joiners_get_the_last_50_chat_messages(client, monkeypatch):
+    monkeypatch.setattr("app.rooms.CHAT_RATE_WINDOW", 0.0)  # 55 messages in a row: no flood guard for this one
+    a_id, _ = await make_user("ash", 62)
+    b_id, _ = await make_user("gary", 63)
+    with client.websocket_connect(url("lobby", issue_ws_ticket(a_id))) as a:
+        a.receive_json()
+        for i in range(55):
+            chat(a, f"message {i}")
+            a.receive_json()  # own echo
+        with client.websocket_connect(url("lobby", issue_ws_ticket(b_id))) as b:
+            history = b.receive_json()["chat"]
+            assert [m["data"]["text"] for m in history] == [f"message {i}" for i in range(5, 55)]
+            assert all(m["from"]["handle"] == "ash" and m["at"] and m["id"] for m in history)
+
+
+async def test_chat_is_rate_limited_per_connection(client):
+    a_id, _ = await make_user("ash", 64)
+    b_id, _ = await make_user("gary", 65)
+    with client.websocket_connect(url("lobby", issue_ws_ticket(a_id))) as a:
+        a.receive_json()
+        with client.websocket_connect(url("lobby", issue_ws_ticket(b_id))) as b:
+            a.receive_json(); b.receive_json()
+            for i in range(9):
+                chat(a, f"spam {i}")
+            echoes = [a.receive_json() for _ in range(9)]
+            assert [e["data"]["text"] for e in echoes[:8]] == [f"spam {i}" for i in range(8)]
+            assert echoes[8]["type"] == "error" and echoes[8]["error"].startswith("chat: slow down")
+            got = [b.receive_json()["data"]["text"] for _ in range(8)]
+            assert got == [f"spam {i}" for i in range(8)]
+            b.send_json({"type": "ping"})
+            assert b.receive_json() == {"type": "pong"}  # the ninth never reached gary
+
+
+async def test_empty_or_non_text_chat_is_refused(client):
+    a_id, _ = await make_user("ash", 66)
+    with client.websocket_connect(url("lobby", issue_ws_ticket(a_id))) as a:
+        a.receive_json()
+        chat(a, "   \x07  ")
+        assert a.receive_json()["error"] == "chat: empty message"
+        a.send_json({"type": "say", "data": {"kind": "chat", "text": 42}})
+        assert a.receive_json()["error"] == "chat: text must be a string"

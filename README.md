@@ -158,7 +158,10 @@ replies, file paths, project or folder names, session ids, or titles.
   built-in Claude Code tool is bucketed as `Other` before it reaches the wire.
 - **Cost sharing is off by default.** Spend is salary- and employer-adjacent.
 - **Chat is only what you type.** Messages in the lobby chat go to everyone in
-  the lobby at that moment, relayed by the server and never stored.
+  the lobby, relayed by the server. It keeps the last 50 in memory (never on
+  disk) so people who join can catch up; they're gone when the lobby empties or
+  the server restarts. The server also cleans and caps messages (500
+  characters) and rate-limits them (8 per 10 seconds per connection).
 - **Voice is peer-to-peer.** Audio goes straight between browsers (WebRTC),
   never through the server. The server relays only the connection setup, which
   includes IP addresses, and only to the people you're in voice with; a public

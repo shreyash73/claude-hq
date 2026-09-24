@@ -133,4 +133,4 @@ the only file that changes.
 | `GET` | `/v1/board/stream` | SSE, pushes on ingest |
 | `GET` | `/v1/me` | |
 | `GET` | `/v1/rooms` | Open rooms |
-| `WS` | `/v1/rooms/{room}/ws?ticket=` | Presence, `say`, `state`, `nudge`, `signal` (WebRTC setup, to one member), `ping` |
+| `WS` | `/v1/rooms/{room}/ws?ticket=` | Presence, `say` (a `{kind: "chat"}` payload is lobby chat: cleaned, rate-limited, last 50 kept in memory and sent in `welcome`), `state`, `nudge`, `signal` (WebRTC setup, to one member), `ping` |

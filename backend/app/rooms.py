@@ -11,6 +11,7 @@ fly.toml). That is the right trade at this size; moving to multiple machines
 means putting this behind Redis pub/sub.
 """
 import asyncio
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -18,6 +19,13 @@ from fastapi import WebSocket
 
 MAX_ROOM_MEMBERS = 32
 MAX_STATE_BYTES = 64 * 1024
+
+# Lobby chat (see routes/rooms.py _chat): a room keeps its last CHAT_HISTORY messages in memory, never on
+# disk, for whoever joins next; each connection may send CHAT_RATE_COUNT per CHAT_RATE_WINDOW seconds.
+CHAT_HISTORY = 50
+CHAT_MAX_CHARS = 500
+CHAT_RATE_COUNT = 8
+CHAT_RATE_WINDOW = 10.0
 
 
 @dataclass
@@ -27,6 +35,7 @@ class Member:
     handle: str
     display_name: str
     avatar_url: str
+    chat_times: deque = field(default_factory=lambda: deque(maxlen=CHAT_RATE_COUNT))
 
     def public(self) -> dict[str, Any]:
         return {
@@ -36,12 +45,21 @@ class Member:
             "avatarUrl": self.avatar_url,
         }
 
+    def may_chat(self, now: float) -> bool:
+        """Sliding-window flood guard: at most CHAT_RATE_COUNT messages per CHAT_RATE_WINDOW seconds."""
+        times = self.chat_times
+        if len(times) == times.maxlen and now - times[0] < CHAT_RATE_WINDOW:
+            return False
+        times.append(now)
+        return True
+
 
 @dataclass
 class Room:
     room_id: str
     members: dict[WebSocket, Member] = field(default_factory=dict)
     state: dict[str, Any] = field(default_factory=dict)
+    chat: deque = field(default_factory=lambda: deque(maxlen=CHAT_HISTORY))
 
     def roster(self) -> list[dict[str, Any]]:
         # One entry per person, not per socket -- a laptop and a desktop are one player.

@@ -1,13 +1,17 @@
-"""Websocket rooms: presence, broadcast, shared state."""
+"""Websocket rooms: presence, broadcast, shared state, lobby chat."""
 import json
+import secrets
+import time
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .. import rooms
 from ..auth import Caller, read_ws_ticket, require_device
 from ..db import SessionLocal, get_session
 from ..models import User
-from ..rooms import MAX_STATE_BYTES, Member, manager
+from ..rooms import MAX_STATE_BYTES, Member, Room, manager
 
 router = APIRouter(prefix="/v1/rooms", tags=["rooms"])
 
@@ -60,6 +64,7 @@ async def room_ws(
         "you": member.public(),
         "members": room.roster(),
         "state": room.state,
+        "chat": list(room.chat),   # recent lobby chat, oldest first, so a joiner can catch up
     })
 
     try:
@@ -87,9 +92,11 @@ async def _handle(room_id: str, member: Member, msg: dict) -> None:
     kind = msg.get("type")
 
     if kind == "say":
-        await room.broadcast({
-            "type": "say", "from": member.public(), "data": msg.get("data"),
-        })
+        data = msg.get("data")
+        if isinstance(data, dict) and data.get("kind") == "chat":
+            await _chat(room, member, data)
+            return
+        await room.broadcast({"type": "say", "from": member.public(), "data": data})
         return
 
     if kind == "state":
@@ -159,3 +166,32 @@ async def _handle(room_id: str, member: Member, msg: dict) -> None:
         return
 
     await member.ws.send_json({"type": "error", "error": f"unknown message type: {kind!r}"})
+
+
+async def _chat(room: Room, member: Member, data: dict) -> None:
+    """Lobby chat. It rides the generic "say" relay (as {kind: "chat", text}), so pages that predate this
+    server keep chatting with pages that don't. Here the server cleans and clips the text, rate-limits each
+    connection, stamps the time and an id, and keeps the last CHAT_HISTORY messages in memory -- never on
+    disk -- for whoever joins next; they go when the room empties or the server restarts."""
+    text = data.get("text")
+    if not isinstance(text, str):
+        await member.ws.send_json({"type": "error", "error": "chat: text must be a string"})
+        return
+    # Control characters (bells, newlines, escapes) become spaces; runs of whitespace fold to one.
+    text = " ".join("".join(ch if ch.isprintable() else " " for ch in text).split())[:rooms.CHAT_MAX_CHARS]
+    if not text:
+        await member.ws.send_json({"type": "error", "error": "chat: empty message"})
+        return
+    if not member.may_chat(time.monotonic()):
+        await member.ws.send_json({
+            "type": "error",
+            "error": "chat: slow down — at most %d messages every %d seconds"
+                     % (rooms.CHAT_RATE_COUNT, rooms.CHAT_RATE_WINDOW),
+        })
+        return
+    entry = {
+        "type": "say", "from": member.public(), "data": {"kind": "chat", "text": text},
+        "id": secrets.token_hex(6), "at": datetime.now(UTC).isoformat(timespec="seconds"),
+    }
+    room.chat.append(entry)
+    await room.broadcast(entry)
