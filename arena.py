@@ -306,6 +306,15 @@ def board(window="season"):
     return _request("GET", "%s/v1/board?window=%s" % (base, window), token=token)
 
 
+def raid():
+    """This week's co-op boss. Derived server-side from the same daily counts."""
+    link = load_link()
+    token, base = link.get("token"), link.get("url") or _base_url()
+    if not token or not base:
+        return 400, {"error": "not paired"}
+    return _request("GET", "%s/v1/raid" % base, token=token)
+
+
 def ws_ticket():
     """Mint a short-lived ticket so the page can open a websocket directly.
 

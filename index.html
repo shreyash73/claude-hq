@@ -967,6 +967,50 @@ html.hq-calm #confetti{display:none!important}
   background:var(--line);object-fit:cover}
 .arena-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .arena-name small{display:block;color:var(--muted);font-size:11px;font-weight:400}
+/* ---- Arena co-op raid ---- */
+.raid{display:flex;flex-direction:column;gap:12px}
+.raid-boss{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.raid-emoji{font-size:44px;line-height:1;flex:0 0 auto;filter:drop-shadow(0 4px 10px rgba(0,0,0,.25));
+  animation:raidBob 3.2s ease-in-out infinite}
+.raid.won .raid-emoji{filter:grayscale(1) opacity(.55);animation:none;transform:rotate(-12deg)}
+@keyframes raidBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes raidHit{0%{transform:translateX(0)}25%{transform:translateX(-5px) rotate(-4deg)}75%{transform:translateX(5px) rotate(4deg)}100%{transform:translateX(0)}}
+.raid-emoji.hit{animation:raidHit .45s ease-in-out 2}
+.raid-info{flex:1 1 14rem;min-width:0}
+.raid-name{font-size:17px;font-weight:700}
+.raid-flavor{font-size:12px;margin-top:2px}
+.raid-weak{display:inline-block;margin-top:6px;font-size:11px;font-weight:600;padding:2px 8px;
+  border-radius:999px;background:var(--needbg);color:var(--need)}
+.raid-meta{display:flex;gap:14px;font-size:12px;color:var(--muted);text-align:center}
+.raid-meta b{display:block;font-size:17px;color:var(--ink);font-variant-numeric:tabular-nums}
+.raid-hp{position:relative;height:22px;border-radius:999px;background:var(--bg2);
+  border:1px solid var(--line);overflow:hidden}
+.raid-hp-fill{position:absolute;inset:0 auto 0 0;width:100%;border-radius:999px;
+  background:linear-gradient(90deg,#e5484d,#f76b15);transition:width .9s cubic-bezier(.2,.8,.2,1)}
+.raid-hp-fill.mid{background:linear-gradient(90deg,#f76b15,#f0c74a)}
+.raid-hp-fill.low{background:linear-gradient(90deg,#f0c74a,#3ad07f)}
+.raid-hp-txt{position:relative;text-align:center;font-size:12px;font-weight:700;line-height:20px;
+  color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6);font-variant-numeric:tabular-nums}
+.raid.won .raid-hp-fill{width:0!important}
+.raid.won .raid-hp-txt{color:var(--good);text-shadow:none}
+.raid-raiders{display:flex;flex-direction:column;gap:6px}
+.raid-row{display:grid;grid-template-columns:minmax(7rem,12rem) 1fr auto;gap:10px;align-items:center;font-size:12px}
+.raid-row.you .raid-who{font-weight:700}
+.raid-who{display:flex;align-items:center;gap:7px;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.raid-who img{width:20px;height:20px;border-radius:50%;flex:0 0 auto;background:var(--line)}
+.raid-bar{height:8px;border-radius:999px;background:var(--bg2);overflow:hidden}
+.raid-bar i{display:block;height:100%;border-radius:999px;background:var(--brand);transition:width .9s ease}
+.raid-row.capped .raid-bar i{background:var(--gold)}
+.raid-dmg{font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+.raid-dmg b{color:var(--ink)}
+.raid-hist{display:flex;gap:6px;flex-wrap:wrap}
+.raid-past{display:flex;align-items:center;gap:5px;font-size:11px;padding:3px 8px;border-radius:7px;
+  border:1px solid var(--line);color:var(--muted)}
+.raid-past.won{border-color:color-mix(in srgb,var(--good) 45%,var(--line));color:var(--good)}
+.raid-foot{font-size:11px}
+@media (max-width:560px){.raid-row{grid-template-columns:6.5rem 1fr auto}.raid-meta{width:100%;justify-content:space-around}}
+@media (prefers-reduced-motion: reduce){.raid-emoji,.raid-emoji.hit{animation:none}.raid-hp-fill,.raid-bar i{transition:none}}
+html.hq-calm .raid-emoji,html.hq-calm .raid-emoji.hit{animation:none}
 .arena-setup{max-width:34rem;display:flex;flex-direction:column;gap:12px}
 .arena-setup label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
 .arena-setup input{width:100%;padding:8px 10px;border-radius:7px;font:inherit;
@@ -1429,6 +1473,27 @@ html.hq-calm #confetti{display:none!important}
         <button class="hbtn on" id="arenaPair" type="button">Connect</button>
       </div>
       <div class="arena-msg hidden" id="arenaMsg" role="status"></div>
+    </section>
+
+    <section class="panel hidden raid" id="arenaRaidWrap" aria-label="Co-op raid">
+      <h3 class="section-h">⚔️ Co-op Raid <span class="muted" id="raidWhen"></span></h3>
+      <div class="raid-boss">
+        <div class="raid-emoji" id="raidEmoji" aria-hidden="true">❔</div>
+        <div class="raid-info">
+          <div class="raid-name" id="raidName">Summoning&hellip;</div>
+          <div class="raid-flavor muted" id="raidFlavor"></div>
+          <div class="raid-weak" id="raidWeak"></div>
+        </div>
+        <div class="raid-meta" id="raidMeta"></div>
+      </div>
+      <div class="raid-hp" role="progressbar" aria-label="Boss HP remaining" aria-valuemin="0"
+           id="raidHp" aria-valuemax="100" aria-valuenow="100">
+        <div class="raid-hp-fill" id="raidHpFill"></div>
+        <div class="raid-hp-txt" id="raidHpTxt"></div>
+      </div>
+      <div class="raid-raiders" id="raidRaiders"></div>
+      <div class="raid-hist" id="raidHist" aria-label="Recent raids"></div>
+      <div class="raid-foot muted" id="raidFoot"></div>
     </section>
 
     <section class="panel hidden" id="arenaBoardWrap" aria-label="Leaderboard">
@@ -5081,6 +5146,7 @@ function loadArena(){
       ARENA.paired = paired;
       $("arenaSetup").classList.toggle("hidden", paired);
       $("arenaBoardWrap").classList.toggle("hidden", !paired);
+      if(!paired) $("arenaRaidWrap").classList.add("hidden");
       $("arenaLobbyWrap").classList.toggle("hidden", !paired);
       $("arenaChatWrap").classList.toggle("hidden", !paired);
       $("arenaVoiceWrap").classList.toggle("hidden", !paired);
@@ -5097,6 +5163,7 @@ function loadArena(){
                  : (" · publish failed: " + (lp.error||"")))
         : " · not published yet";
       arenaLoadBoard();
+      arenaLoadRaid();
       arenaRenderChat();
       arenaOpenSocket();
     }).catch(function(){ $("arenaSub").textContent = "Status unavailable"; });
@@ -5128,6 +5195,102 @@ function arenaNudgeHandle(handle, btn){
     toast("\u26A0 "+reason, "ach");
   }).catch(function(){ if(btn) btn.disabled=false; });
 }
+// Co-op raid: a weekly boss everyone's activity damages. The server derives it
+// from the same daily counts as the board, so nothing new leaves the machine.
+// A server that predates raids answers 404; the panel then just stays hidden.
+var RAID = {lastDamage:null, lastWeek:null, wonWeek:null};
+function raidLoadWon(){ try{ return localStorage.getItem("hq.raidWon")||""; }catch(e){ return ""; } }
+function raidSaveWon(w){ try{ localStorage.setItem("hq.raidWon", w); }catch(e){} }
+function raidAgo(iso){
+  var ms = new Date(iso).getTime() - Date.now();
+  if(ms <= 0) return "ending now";
+  var h = Math.floor(ms/3600000), d = Math.floor(h/24);
+  return d >= 1 ? (d+"d "+(h%24)+"h left") : (h >= 1 ? (h+"h left") : (Math.max(1,Math.round(ms/60000))+"m left"));
+}
+function arenaLoadRaid(){
+  var wrap = $("arenaRaidWrap"); if(!wrap) return;
+  fetch("/api/arena/raid",{cache:"no-store"}).then(function(r){
+    return r.json().then(function(j){ return {status:r.status, j:j}; });
+  }).then(function(res){
+    var r = res.j||{};
+    if(res.status !== 200 || !r.boss){ wrap.classList.add("hidden"); return; }
+    wrap.classList.remove("hidden");
+    wrap.classList.toggle("won", !!r.defeated);
+
+    var b = r.boss, left = Math.max(0, r.hp - r.damage), pct = r.hp ? (left / r.hp * 100) : 0;
+    $("raidWhen").textContent = "· " + r.weekStart + " → " + r.weekEnd;
+    var em = $("raidEmoji"); em.textContent = b.emoji;
+    $("raidName").textContent = b.name + (r.defeated ? " — defeated!" : "");
+    $("raidFlavor").textContent = b.flavor;
+    $("raidWeak").textContent = "Weak to " + b.weakness + " · ×" + b.multiplier + " damage";
+
+    var meta = $("raidMeta"); meta.innerHTML = "";
+    [[r.defeated ? "🏁" : raidAgo(r.endsAt).split(" ")[0], r.defeated ? ("won " + r.defeatedOn) : "left"],
+     [String(r.teamStreak), "win streak"],
+     [String(r.yourTrophies), "your trophies"]].forEach(function(m){
+      var d = document.createElement("div"); var bb = document.createElement("b");
+      bb.textContent = m[0]; d.appendChild(bb); d.appendChild(document.createTextNode(m[1])); meta.appendChild(d);
+    });
+
+    var fill = $("raidHpFill");
+    fill.style.width = pct.toFixed(1) + "%";
+    fill.className = "raid-hp-fill" + (pct < 25 ? " low" : pct < 60 ? " mid" : "");
+    $("raidHpTxt").textContent = r.defeated
+      ? "💥 Defeated — " + r.hp.toLocaleString() + " HP dealt"
+      : left.toLocaleString() + " / " + r.hp.toLocaleString() + " HP";
+    $("raidHp").setAttribute("aria-valuenow", String(Math.round(pct)));
+
+    var list = $("raidRaiders"); list.innerHTML = "";
+    if(!(r.raiders||[]).length){
+      var none = document.createElement("div"); none.className = "muted"; none.style.fontSize = "12px";
+      none.textContent = "No hits yet this week. Your next prompt lands the first blow.";
+      list.appendChild(none);
+    }
+    (r.raiders||[]).forEach(function(x){
+      var row = document.createElement("div");
+      row.className = "raid-row" + (x.isYou ? " you" : "") + (x.capped ? " capped" : "");
+      var who = document.createElement("div"); who.className = "raid-who";
+      if(x.avatarUrl){ var img = document.createElement("img"); img.src = x.avatarUrl; img.alt = ""; img.loading = "lazy"; who.appendChild(img); }
+      var nm = document.createElement("span");
+      nm.textContent = (x.mvp ? "👑 " : "") + (x.trainerName || x.displayName || x.handle);
+      who.appendChild(nm);
+      who.title = "@" + x.handle + (x.capped ? " · hit the per-raider cap (" + r.raiderCap.toLocaleString() + ") — the rest is up to the team" : "");
+      var bar = document.createElement("div"); bar.className = "raid-bar";
+      var i = document.createElement("i"); i.style.width = Math.min(100, x.share * 100).toFixed(1) + "%"; bar.appendChild(i);
+      var dmg = document.createElement("div"); dmg.className = "raid-dmg";
+      var bd = document.createElement("b"); bd.textContent = x.damage.toLocaleString(); dmg.appendChild(bd);
+      dmg.appendChild(document.createTextNode(" · " + Math.round(x.share * 100) + "%" + (x.todayDamage ? " · +" + x.todayDamage.toLocaleString() + " today" : "")));
+      row.appendChild(who); row.appendChild(bar); row.appendChild(dmg);
+      list.appendChild(row);
+    });
+
+    var hist = $("raidHist"); hist.innerHTML = "";
+    (r.history||[]).slice().reverse().forEach(function(h){
+      var c = document.createElement("span"); c.className = "raid-past" + (h.defeated ? " won" : "");
+      c.textContent = h.emoji + " " + (h.defeated ? "✓" : "✗");
+      c.title = h.bossName + " · week of " + h.weekStart + " · " + (h.defeated ? "defeated" : "escaped") +
+        " · " + h.damage.toLocaleString() + "/" + h.hp.toLocaleString() + " HP · " + h.raiders + " raider" + (h.raiders === 1 ? "" : "s");
+      hist.appendChild(c);
+    });
+
+    $("raidFoot").textContent = "Damage = your XP this week, with " + b.weakness + " counting ×" + b.multiplier +
+      ". Nobody can deal more than " + r.raiderCap.toLocaleString() + " alone, so it takes the team. Resets Monday 00:00 UTC.";
+
+    // Shake the boss when the team's damage went up since the last look, and
+    // celebrate a kill once per week per browser.
+    if(RAID.lastWeek === r.weekStart && RAID.lastDamage !== null && r.damage > RAID.lastDamage && !r.defeated){
+      em.classList.remove("hit"); void em.offsetWidth; em.classList.add("hit");
+    }
+    RAID.lastWeek = r.weekStart; RAID.lastDamage = r.damage;
+    if(r.defeated && raidLoadWon() !== r.weekStart){
+      raidSaveWon(r.weekStart);
+      toast("⚔️ " + b.name + " defeated! The raid is won this week.", "level");
+      confettiBurst();
+    }
+  }).catch(function(){ wrap.classList.add("hidden"); });
+}
+setInterval(function(){ if(ARENA.paired && !document.hidden) arenaLoadRaid(); }, 120000);
+
 function arenaLoadBoard(){
   fetch("/api/arena/board?window="+encodeURIComponent(ARENA.window),{cache:"no-store"})
     .then(function(r){return r.json();})

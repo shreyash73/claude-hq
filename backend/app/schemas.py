@@ -168,3 +168,55 @@ class NudgeItem(BaseModel):
 
 class NudgesResponse(BaseModel):
     nudges: list[NudgeItem] = Field(default_factory=list)
+
+
+# --- co-op raids -------------------------------------------------------------
+# Derived entirely from daily counts; nothing here is submitted by a client.
+
+class RaidBoss(BaseModel):
+    slug: str
+    name: str
+    emoji: str
+    weakness: Literal["prompts", "tools", "artifacts"]
+    flavor: str
+    multiplier: int
+
+
+class RaidRaider(BaseModel):
+    handle: str
+    displayName: str
+    trainerName: str
+    avatarUrl: str
+    damage: int
+    share: float
+    todayDamage: int
+    capped: bool = False
+    mvp: bool = False
+    isYou: bool = False
+
+
+class RaidHistoryItem(BaseModel):
+    weekStart: date
+    bossName: str
+    emoji: str
+    hp: int
+    damage: int
+    defeated: bool
+    raiders: int
+
+
+class RaidResponse(BaseModel):
+    weekStart: date
+    weekEnd: date
+    endsAt: str
+    boss: RaidBoss
+    hp: int
+    damage: int
+    defeated: bool
+    defeatedOn: date | None = None
+    raiderCap: int
+    raiders: list[RaidRaider]
+    history: list[RaidHistoryItem]
+    yourTrophies: int
+    teamStreak: int
+    generatedAt: str

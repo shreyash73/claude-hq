@@ -2898,6 +2898,11 @@ class Handler(BaseHTTPRequestHandler):
             self._send(code or 502, json.dumps(resp))
             return
 
+        if path == "/api/arena/raid":
+            code, resp = arena.raid()
+            self._send(code or 502, json.dumps(resp))
+            return
+
         if path == "/api/config":
             try:
                 self._send(200, json.dumps(load_config()))

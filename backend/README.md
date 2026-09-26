@@ -39,6 +39,7 @@ determined faker.
 | `app/schemas.py` | The wire allowlist. The privacy boundary. |
 | `app/scoring.py` | XP / level / rank / streak. Mirrors `dashboard.py`. |
 | `app/service.py` | Ingest (upsert per day) and leaderboard queries. |
+| `app/raids.py` | Weekly co-op raid: boss, HP, per-raider cap. Derived, no table. |
 | `app/rooms.py` | In-process websocket rooms: presence, broadcast, shared state. |
 | `app/auth.py` | Device tokens, pairing codes, websocket tickets. |
 | `alembic/` | Migrations. |
@@ -55,7 +56,7 @@ cd backend
 uv sync
 cp .env.example .env          # defaults to SQLite; no Postgres needed
 uv run uvicorn app.main:app --reload --port 8080
-uv run pytest                 # 22 tests
+uv run pytest
 ```
 
 ### Seeding fake friends
@@ -151,5 +152,6 @@ the only file that changes.
 | `GET` | `/v1/board?window=season\|30d\|7d\|all` | |
 | `GET` | `/v1/board/stream` | SSE, pushes on ingest |
 | `GET` | `/v1/me` | |
+| `GET` | `/v1/raid` | This week's co-op boss, derived from `daily_stats` (`app/raids.py`) |
 | `GET` | `/v1/rooms` | Open rooms |
 | `WS` | `/v1/rooms/{room}/ws?ticket=` | Presence, `say` (a `{kind: "chat"}` payload is lobby chat: cleaned, rate-limited, last 50 kept in memory and sent in `welcome`), `state`, `nudge`, `signal` (WebRTC setup, to one member), `ping` |

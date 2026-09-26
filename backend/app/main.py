@@ -9,6 +9,7 @@ from .db import Base, describe_backend, engine
 from .routes import auth as auth_routes
 from .routes import board as board_routes
 from .routes import nudges as nudge_routes
+from .routes import raids as raid_routes
 from .routes import rooms as room_routes
 from .routes import stats as stats_routes
 
@@ -40,6 +41,7 @@ app.include_router(auth_routes.router)
 app.include_router(stats_routes.router)
 app.include_router(board_routes.router)
 app.include_router(nudge_routes.router)
+app.include_router(raid_routes.router)
 app.include_router(room_routes.router)
 
 
